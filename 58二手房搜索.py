@@ -3,19 +3,24 @@ import time
 import re
 from lxml import etree
 from urllib import parse
+from SaveToDB import  SaveTool
+import datetime
+import sys
 
-if __name__ == "__main__":
+
+def realTimeGet():
+    keyword = input('请输入关键词(默认悉尼蓝湾，直接回车):')
+    if keyword == '':
+        keyword = '悉尼蓝湾'
     # 列表 存所有房源信息
     all_list = []
     headers = {
+        "authority": "gl.58.com",
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "referer": "https://callback.58.com/",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-        "cookie": "f=n; userid360_xml=71AA4CEB68A4149CDA14A2A28361DF12; time_create=1613562377170; commontopbar_new_city_info=1039%7C%E6%A1%82%E6%9E%97%7Cgl; commontopbar_ipcity=gl%7C%E6%A1%82%E6%9E%97%7C0; 58home=gl; f=n; id58=c5/nfGAFdP1IXzr8BJLkAg==; city=gl; 58tj_uuid=e545b9d1-11bb-4eae-ba4f-08ed2b4e949f; als=0; wmda_uuid=0278ee87d687e0add91317d28f20f11e; wmda_new_uuid=1; wmda_visited_projects=%3B6333604277682%3B11187958619315; xxzl_deviceid=qQzkzbOJK%2FfZfLdxTidwCiUFsRYbhqaHRcRz3w3vSb8WgkiGqRfUpFGmOh0%2FsWP2; new_uv=3; utm_source=; spm=; init_refer=https%253A%252F%252Fgl.58.com%252F; JSESSIONID=EE94A4B17DF46A65C22A06121B59E493; wmda_session_id_6333604277682=1611020022213-0c3f26c0-70fb-ca44; new_session=0; wmda_session_id_11187958619315=1611020026684-ada47e50-82fd-ea6f; xzfzqtoken=4G0WPQRyevcLytlmNCJccPCJKF%2F3NJA5yz8iyE%2Fw%2FSmm09xD9TFbpGknRTOBr4rUin35brBb%2F%2FeSODvMgkQULA%3D%3D",
+        "cookie": "userid360_xml=71AA4CEB68A4149CDA14A2A28361DF12; time_create=1613562377170; f=n; commontopbar_new_city_info=1039%7C%E6%A1%82%E6%9E%97%7Cgl; commontopbar_ipcity=gl%7C%E6%A1%82%E6%9E%97%7C0; 58home=gl; id58=c5/nfGAFdP1IXzr8BJLkAg==; city=gl; 58tj_uuid=e545b9d1-11bb-4eae-ba4f-08ed2b4e949f; als=0; wmda_uuid=0278ee87d687e0add91317d28f20f11e; wmda_new_uuid=1; wmda_visited_projects=%3B6333604277682%3B11187958619315; xxzl_deviceid=qQzkzbOJK%2FfZfLdxTidwCiUFsRYbhqaHRcRz3w3vSb8WgkiGqRfUpFGmOh0%2FsWP2; sessid=5FBF9842-2C06-45F5-B8EE-714DF935BA19; aQQ_ajkguid=84A89C36-4D1E-4003-8CC4-E15E0113819A; ctid=1039; JSESSIONID=463DDE22BB97A7C26C8DBAA920EBCEBC; wmda_session_id_6333604277682=1611113306655-823ff673-6baf-033c; new_session=1; new_uv=8; utm_source=; spm=; init_refer=https%253A%252F%252Fcallback.58.com%252F; wmda_session_id_11187958619315=1611113312138-188d32ba-370f-06e2; xzfzqtoken=IhGAKfoqkPWDCC7hxRnsdb2%2F45O%2FLKC%2BzZXr6PUP9zohqZGz7YzzaIbGJKWo8xRgin35brBb%2F%2FeSODvMgkQULA%3D%3D",
     }
-    keyword = input('请输入关键词(默认悉尼蓝湾，直接回车):')
-    if keyword == '':
-        keyword ='悉尼蓝湾'
     url = 'https://gl.58.com/ershoufang/?key={}'.format(parse.quote(keyword))
     page_text = requests.get(url=url, headers=headers).text
     #获取最大页码
@@ -68,29 +73,32 @@ if __name__ == "__main__":
             all_list.append(one_dict)
         time.sleep(3)
 
-
-
-    #统计数据
-    #计算平均值
-    sum = 0
-    for l in all_list:
-        sum = sum + l['price_uint']
-    sum_size =len(all_list)
-    avg = 0
-    if sum_size!=0:
-        avg = sum // sum_size
+    if len(all_list) >0:
         result_list = sorted(all_list,key=lambda x: (x['price_uint']))
-        avg_str = '平均单价：{}/㎡ ，最高单价：{}/㎡,最低单价：{}/㎡,107㎡建议售价：{}万,收集58同城{}个数据\n\n'.format(avg,result_list[-1]['price_uint'],result_list[0]['price_uint'],avg*107//10000,len(result_list))
-        filename = './{}_58.txt'.format(keyword)
-        fp = open(filename, 'w', encoding='utf-8')
-        fp.write(avg_str)
-        count = 0
-        for l in result_list:
-            count = count+1
-            str = '{}、'.format(count)+l['title']
-            fp.write( str)
-            fp.write('\n')
-        fp.close()
-
+        #保存到数据库
+        st = SaveTool()
+        st.savetodb(result_list,keyword=keyword)
+        #保存到文件----------------------
+        dt = datetime.datetime.now().strftime("%Y-%m-%d")
+        filename = '{}_58({}).txt'.format(keyword,dt)
+        st.savetofile(filename=filename,result_list=result_list)
     else:
         print('你被限制访问了，请用浏览器手动验证')
+
+
+if __name__ == "__main__":
+    choice_function  = input('请选择功能：\n1：查询当天数据\n2：从数据库中查询指定日期数据\n')
+    if choice_function == '1':
+        realTimeGet()
+    elif choice_function == '2':
+        keyword = input('请输入关键字:')
+        querydate = input('请输入查询的日期(格式：2021-01-20):')
+        if keyword == '':
+            keyword = '悉尼蓝湾'
+        if querydate == '':
+            querydate = '2021-01-20'
+        st = SaveTool()
+        st.savetofilefromdb(QueryTime=querydate, keyword=keyword)
+    else:
+        print('没有此功能')
+        sys.exit(1)
